@@ -1,0 +1,190 @@
+#include <Wire.h>  //includes library for I2C communication
+#include "mpu6500.h" //includes library for MPU use
+
+//creates variables for angle calculations
+float currentangle, correct;
+
+#define echoPin 18 // attach pin D18 Arduino to pin Echo of HC-SR04
+#define trigPin 5 //attach pin D5 Arduino to pin Trig of HC-SR04
+#define led 16
+
+// defines variables
+long duration, servoangle; 
+int distance, speed; 
+
+/* Mpu6500 object */
+bfs::Mpu6500 imu;
+
+
+void setup() {
+
+
+  /* Serial to display data */
+  Serial.begin(9600);
+  while(!Serial) {}
+  /* Start the I2C bus */
+  Wire.begin();
+  Wire.setClock(400000);
+  /* I2C bus,  0x68 address */
+  imu.Config(&Wire, bfs::Mpu6500::I2C_ADDR_PRIM);
+  /* Initialize and configure IMU */
+  if (!imu.Begin()) {
+    Serial.println("Error initializing communication with IMU");
+    while(1) {}
+  }
+  /* Set the sample rate divider */
+  if (!imu.ConfigSrd(19)) {
+    Serial.println("Error configured SRD");
+    while(1) {}
+  }
+  correct = imu.gyro_z_radps();
+
+   pinMode(led, OUTPUT);
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as an OUTPUT
+  pinMode(echoPin, INPUT); // Sets the echoPin as an INPUT
+  Serial.begin(9600); // // Serial Communication is starting with 9600 of baudrate speed
+  Serial.println("Ultrasonic Sensor HC-SR04 Test"); // print some text in Serial Monitor
+  Serial.println("with Arduino UNO R3");
+
+       runcycle();
+}
+
+void loop()
+{
+  ;
+}
+
+void runcycle()
+{
+  Serial.println("part1");
+  int z;
+for(z=0; z<100; z++)
+{
+speed = 1;
+vehicleangle();
+ servoangle = 52 - currentangle;
+ sendData();
+delay(10);
+}
+
+Serial.println("part2");
+speed = 0;
+servoangle = 0;
+sendData();
+delay(1000);
+
+Serial.println("part3");
+while(currentangle<160)
+{
+  speed=2;
+ vehicleangle();
+ sendData();
+}
+
+Serial.println("part4");
+speed = 0;
+currentangle = 0;
+sendData();
+delay(1000);
+
+Serial.println("part5");
+distance = 100;
+while (distance > 10)
+{
+speed = 2;
+vehiclewalldistance();
+vehicleangle();
+servoangle = 52;
+sendData();
+}
+
+Serial.println("part6");
+speed = 0;
+servoangle = 90;
+sendData();
+delay(1000);
+currentangle = 0;
+
+Serial.println("part7");
+while(currentangle<70)
+{
+  speed = 1;
+  vehicleangle();
+  sendData();
+}
+
+Serial.println("part8");
+speed = 0;
+currentangle = 0;
+servoangle = 52;
+sendData();
+delay(1000);
+
+Serial.println("part9");
+distance = 100;
+
+while (distance > 10)
+{
+speed = 2;
+vehiclewalldistance();
+servoangle = 52;
+sendData();
+}
+
+speed = 0;
+sendData();
+delay(10000);
+}
+
+void vehiclewalldistance()
+{
+// Clears the trigPin condition
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin HIGH (ACTIVE) for 10 microseconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  // Reads the echoPin, returns the sound wave travel time in microseconds
+  duration = pulseIn(echoPin, HIGH);
+  // Calculating the distance
+  distance = duration * 0.034 / 2; // Speed of sound wave divided by 2 (go and back)
+Serial.println(distance);
+  // Displays the distance on the Serial Monitor
+ 
+}
+
+void vehicleangle()
+{
+int x;
+float anglechange=0;
+  /* Check if data read */
+  if (imu.Read()) {
+
+for(x=0; x<10; x++)
+{   
+anglechange = anglechange + imu.gyro_z_radps()-correct-0.01;
+delayMicroseconds(100);
+}
+  anglechange = anglechange/10;
+    if(anglechange>0.01)
+    {
+    currentangle = currentangle + (anglechange)*0.009677*360/(M_PI);
+    Serial.println(currentangle);
+    }
+
+    if(anglechange<-0.01)
+    {
+    currentangle = currentangle + (anglechange)*0.01*360/(M_PI);
+    Serial.println(currentangle);
+    }
+   
+}
+}
+
+void sendData() {
+ Wire.beginTransmission(0x08);  // transmit to device #8
+  Wire.write(speed);              //sends servo value to arduino
+  Wire.write(servoangle);          //sends speed value to arduino
+   Wire.endTransmission();        // stop transmitting  
+}
